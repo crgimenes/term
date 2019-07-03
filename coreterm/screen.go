@@ -37,15 +37,14 @@ var (
 	//var countaux int
 	noKey bool
 	shift bool
+	lastKey = struct {
+		Time uint64
+		Char byte
+	}{
+		0,
+		0,
+	}
 )
-
-var lastKey = struct {
-	Time uint64
-	Char byte
-}{
-	0,
-	0,
-}
 
 var bitmap = []byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -578,7 +577,11 @@ func input() {
 	for c := 'A'; c <= 'Z'; c++ {
 		if ebiten.IsKeyPressed(ebiten.Key(c) - 'A' + ebiten.KeyA) {
 			keyTreatment(byte(c), func(c byte) {
-				putChar(c)
+				if ebiten.IsKeyPressed(ebiten.KeyShift) {
+					putChar(c)
+					return
+				}
+				putChar(c+32) // convert to lowercase
 			})
 			return
 		}
