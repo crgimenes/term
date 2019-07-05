@@ -14,56 +14,48 @@ const (
 	columns = 80
 )
 
-var (
-	cursor           int
-	cursorBlinkTimer int
-	cursorSetBlink   = true
-	cpx, cpy         int
-
-	machine int
-
-	noKey   bool
-	shift   bool
-	lastKey = struct {
-		Time uint64
-		Char byte
-	}{
-		0,
-		0,
-	}
-)
-
 type Instance struct {
-	videoTextMemory [rows * columns * 2]byte
-	Border          int
-	Height          int
-	Width           int
-	Scale           float64
-	CurrentColor    byte
-	uTime           uint64
-	updateScreen    bool
-	tmpScreen       *ebiten.Image
-	img             *image.RGBA
-	ScreenHandler   func(*Instance) error
-	Title           string
-	Font            struct {
+	videoTextMemory  [rows * columns * 2]byte
+	Border           int
+	Height           int
+	Width            int
+	Scale            float64
+	cursor           int
+	CurrentColor     byte
+	cursorSetBlink   bool
+	cursorBlinkTimer int
+	uTime            uint64
+	updateScreen     bool
+	tmpScreen        *ebiten.Image
+	img              *image.RGBA
+	ScreenHandler    func(*Instance) error
+	Title            string
+	machine          int
+	noKey            bool
+	shift            bool
+	Font             struct {
 		Height int
 		Width  int
 		Bitmap []byte
 	}
+	lastKey struct {
+		Time uint64
+		Char byte
+	}
 }
 
-var ct *Instance
-
 func Get() *Instance {
-	ct = &Instance{}
-	ct.Width = columns * 9
-	ct.Height = rows * 16
-	ct.Scale = 1
-	ct.ScreenHandler = ct.update
-	ct.Title = "term"
-	ct.CurrentColor = 0x0F
-	return ct
+	i := &Instance{}
+	i.Width = columns * 9
+	i.Height = rows * 16
+	i.Scale = 1
+	i.ScreenHandler = i.update
+	i.Title = "term"
+	i.CurrentColor = 0x0F
+	i.cursorSetBlink = true
+	i.Border = 0
+
+	return i
 }
 
 var Colors = []struct {
@@ -95,7 +87,7 @@ func MergeColorCode(b, f byte) byte {
 
 func (i *Instance) updateTermScreen(screen *ebiten.Image) error {
 	if i.ScreenHandler != nil {
-		err := i.ScreenHandler(ct)
+		err := i.ScreenHandler(i)
 		if err != nil {
 			return err
 		}
@@ -180,14 +172,14 @@ func (i *Instance) Clear() {
 }
 
 func (i *Instance) DrawCursor(index, fgColor, bgColor byte, x, y int) {
-	if cursorSetBlink {
-		if cursorBlinkTimer < 15 {
+	if i.cursorSetBlink {
+		if i.cursorBlinkTimer < 15 {
 			fgColor, bgColor = bgColor, fgColor
 		}
 		i.DrawChar(index, fgColor, bgColor, x, y)
-		cursorBlinkTimer++
-		if cursorBlinkTimer > 30 {
-			cursorBlinkTimer = 0
+		i.cursorBlinkTimer++
+		if i.cursorBlinkTimer > 30 {
+			i.cursorBlinkTimer = 0
 		}
 		return
 	}
@@ -201,7 +193,7 @@ func (i *Instance) DrawVideoTextMode() {
 			color := i.videoTextMemory[idx]
 			f := color & 0x0f
 			b := color & 0xf0 >> 4
-			if idx == cursor {
+			if idx == i.cursor {
 				idx++
 				i.DrawCursor(i.videoTextMemory[idx], f, b, c*9, r*16)
 			} else {
@@ -229,22 +221,22 @@ func (i *Instance) moveLineUp() {
 }
 
 func (i *Instance) correctVideoCursor() {
-	if cursor < 0 {
-		cursor = 0
+	if i.cursor < 0 {
+		i.cursor = 0
 	}
-	for cursor >= rows*columns*2 {
-		cursor -= columns * 2
+	for i.cursor >= rows*columns*2 {
+		i.cursor -= columns * 2
 		i.moveLineUp()
 	}
 }
 
 func (i *Instance) putChar(c byte) {
 	i.correctVideoCursor()
-	i.videoTextMemory[cursor] = i.CurrentColor
-	cursor++
+	i.videoTextMemory[i.cursor] = i.CurrentColor
+	i.cursor++
 	i.correctVideoCursor()
-	i.videoTextMemory[cursor] = c
-	cursor++
+	i.videoTextMemory[i.cursor] = c
+	i.cursor++
 	i.correctVideoCursor()
 }
 
@@ -253,12 +245,12 @@ func (i *Instance) bPrint(msg string) {
 		c := msg[idx]
 		switch c {
 		case 13:
-			cursor += columns * 2
+			i.cursor += columns * 2
 			continue
 		case 10:
-			aux := cursor / (columns * 2)
+			aux := i.cursor / (columns * 2)
 			aux = aux * (columns * 2)
-			cursor = aux
+			i.cursor = aux
 			continue
 		}
 		i.putChar(c)
@@ -271,16 +263,16 @@ func (i *Instance) bPrintln(msg string) {
 }
 
 func (i *Instance) keyTreatment(c byte, f func(c byte)) {
-	if noKey || lastKey.Char != c || lastKey.Time+20 < i.uTime {
+	if i.noKey || i.lastKey.Char != c || i.lastKey.Time+20 < i.uTime {
 		f(c)
-		noKey = false
-		lastKey.Char = c
-		lastKey.Time = i.uTime
+		i.noKey = false
+		i.lastKey.Char = c
+		i.lastKey.Time = i.uTime
 	}
 }
 
 func (i *Instance) getLine() string {
-	aux := cursor / (columns * 2)
+	aux := i.cursor / (columns * 2)
 	var ret string
 	for idx := aux*(columns*2) + 1; idx < aux*(columns*2)+columns*2; idx += 2 {
 		c := i.videoTextMemory[idx]
@@ -338,10 +330,10 @@ func (i *Instance) input() {
 	if ebiten.IsKeyPressed(ebiten.KeyEnter) {
 		i.keyTreatment(0, func(c byte) {
 			eval(i.getLine())
-			cursor += columns * 2
-			aux := cursor / (columns * 2)
+			i.cursor += columns * 2
+			aux := i.cursor / (columns * 2)
 			aux = aux * (columns * 2)
-			cursor = aux
+			i.cursor = aux
 			i.correctVideoCursor()
 		})
 		return
@@ -349,14 +341,14 @@ func (i *Instance) input() {
 
 	if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
 		i.keyTreatment(0, func(c byte) {
-			cursor -= 2
-			line := cursor / (columns * 2)
+			i.cursor -= 2
+			line := i.cursor / (columns * 2)
 			lineEnd := line*columns*2 + columns*2
-			if cursor < 0 {
-				cursor = 0
+			if i.cursor < 0 {
+				i.cursor = 0
 			}
 
-			copy(i.videoTextMemory[cursor:lineEnd], i.videoTextMemory[cursor+2:lineEnd])
+			copy(i.videoTextMemory[i.cursor:lineEnd], i.videoTextMemory[i.cursor+2:lineEnd])
 			i.videoTextMemory[lineEnd-2] = i.CurrentColor
 			i.videoTextMemory[lineEnd-1] = 0
 
@@ -377,10 +369,10 @@ func (i *Instance) input() {
 	   KeyGraveAccent: `
 	*/
 
-	shift = ebiten.IsKeyPressed(ebiten.KeyShift)
+	i.shift = ebiten.IsKeyPressed(ebiten.KeyShift)
 
 	if ebiten.IsKeyPressed(ebiten.KeyEqual) {
-		if shift {
+		if i.shift {
 			i.keyTreatment('+', func(c byte) {
 				i.putChar(c)
 				println("+")
@@ -397,28 +389,28 @@ func (i *Instance) input() {
 
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		i.keyTreatment(0, func(c byte) {
-			cursor -= columns * 2
+			i.cursor -= columns * 2
 			i.correctVideoCursor()
 		})
 		return
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
 		i.keyTreatment(0, func(c byte) {
-			cursor += columns * 2
+			i.cursor += columns * 2
 			i.correctVideoCursor()
 		})
 		return
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		i.keyTreatment(0, func(c byte) {
-			cursor -= 2
+			i.cursor -= 2
 			i.correctVideoCursor()
 		})
 		return
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		i.keyTreatment(0, func(c byte) {
-			cursor += 2
+			i.cursor += 2
 			i.correctVideoCursor()
 		})
 		return
@@ -437,21 +429,21 @@ func (i *Instance) input() {
 		//ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'MIDDLE' mouse button.")
 	}
 
-	cpx, cpy = ebiten.CursorPosition()
+	//cpx, cpy := ebiten.CursorPosition()
 	//fmt.Printf("X: %d, Y: %d\n", x, y)
 
 	// Display the information with "X: xx, Y: xx" format
 	//ebitenutil.DebugPrint(screen, fmt.Sprintf("X: %d, Y: %d", x, y))
 
-	noKey = true
+	i.noKey = true
 
 }
 
 func (i *Instance) update(screen *Instance) error {
 	i.uTime++
 
-	if machine == 0 {
-		machine++
+	if i.machine == 0 {
+		i.machine++
 		i.bPrintln("          1         2         3         4         5         6         7")
 		i.bPrintln("01234567890123456789012345678901234567890123456789012345678901234567890123456789")
 		i.bPrintln("terminal v0.01")
@@ -466,7 +458,7 @@ func (i *Instance) update(screen *Instance) error {
 
 	}
 
-	ct.DrawVideoTextMode()
+	i.DrawVideoTextMode()
 
 	i.input()
 	return nil
