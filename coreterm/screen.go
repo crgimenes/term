@@ -44,7 +44,7 @@ type Instance struct {
 	}
 }
 
-func Get() *Instance {
+func New() *Instance {
 	i := &Instance{}
 	i.Width = columns * 9
 	i.Height = rows * 16
