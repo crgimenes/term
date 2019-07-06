@@ -20,7 +20,6 @@ type Instance struct {
 	Height           int
 	Width            int
 	Scale            float64
-<<<<<<< HEAD
 	CurrentColor     byte
 	uTime            uint64
 	updateScreen     bool
@@ -33,21 +32,6 @@ type Instance struct {
 	cursorSetBlink   bool
 	machine          int
 	cpx, cpy         int
-=======
-	cursor           int
-	CurrentColor     byte
-	cursorSetBlink   bool
-	cursorBlinkTimer int
-	uTime            uint64
-	updateScreen     bool
-	tmpScreen        *ebiten.Image
-	img              *image.RGBA
-	ScreenHandler    func(*Instance) error
-	Title            string
-	machine          int
-	noKey            bool
-	shift            bool
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	Font             struct {
 		Height int
 		Width  int
@@ -57,19 +41,12 @@ type Instance struct {
 		Time uint64
 		Char byte
 	}
-<<<<<<< HEAD
 	noKey bool
 }
 
 func New() *Instance {
 	var i *Instance
 	i = &Instance{}
-=======
-}
-
-func New() *Instance {
-	i := &Instance{}
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	i.Width = columns * 9
 	i.Height = rows * 16
 	i.Scale = 1
@@ -77,11 +54,6 @@ func New() *Instance {
 	i.Title = "term"
 	i.CurrentColor = 0x0F
 	i.cursorSetBlink = true
-<<<<<<< HEAD
-=======
-	i.Border = 0
-
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	return i
 }
 
@@ -129,10 +101,7 @@ func (i *Instance) updateTermScreen(screen *ebiten.Image) error {
 }
 
 func (i *Instance) Run() {
-<<<<<<< HEAD
 
-=======
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	i.Font.Bitmap = bitmap
 	i.Font.Height = 16
 	i.Font.Width = 9
@@ -272,10 +241,7 @@ func (i *Instance) putChar(c byte) {
 func (i *Instance) bPrint(msg string) {
 	for idx := 0; idx < len(msg); idx++ {
 		c := msg[idx]
-<<<<<<< HEAD
 
-=======
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 		switch c {
 		case 13:
 			i.cursor += columns * 2
@@ -286,11 +252,7 @@ func (i *Instance) bPrint(msg string) {
 			i.cursor = aux
 			continue
 		}
-<<<<<<< HEAD
 		i.putChar(msg[idx])
-=======
-		i.putChar(c)
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	}
 }
 
@@ -366,11 +328,7 @@ func (i *Instance) input() {
 
 	if ebiten.IsKeyPressed(ebiten.KeyEnter) {
 		i.keyTreatment(0, func(c byte) {
-<<<<<<< HEAD
 			i.eval(i.getLine())
-=======
-			eval(i.getLine())
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 			i.cursor += columns * 2
 			aux := i.cursor / (columns * 2)
 			aux = aux * (columns * 2)
@@ -410,17 +368,10 @@ func (i *Instance) input() {
 	   KeyGraveAccent: `
 	*/
 
-<<<<<<< HEAD
 	shift := ebiten.IsKeyPressed(ebiten.KeyShift)
 
 	if ebiten.IsKeyPressed(ebiten.KeyEqual) {
 		if shift {
-=======
-	i.shift = ebiten.IsKeyPressed(ebiten.KeyShift)
-
-	if ebiten.IsKeyPressed(ebiten.KeyEqual) {
-		if i.shift {
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 			i.keyTreatment('+', func(c byte) {
 				i.putChar(c)
 				println("+")
@@ -477,11 +428,7 @@ func (i *Instance) input() {
 		//ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'MIDDLE' mouse button.")
 	}
 
-<<<<<<< HEAD
 	i.cpx, i.cpy = ebiten.CursorPosition()
-=======
-	//cpx, cpy := ebiten.CursorPosition()
->>>>>>> a73eb951ca356de504219b3fe654a34bd5be2121
 	//fmt.Printf("X: %d, Y: %d\n", x, y)
 
 	// Display the information with "X: xx, Y: xx" format
