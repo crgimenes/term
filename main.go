@@ -6,7 +6,7 @@ import (
 
 func main() {
 
-	ct := coreterm.Get()
+	ct := coreterm.New()
 
 	ct.Run()
 
