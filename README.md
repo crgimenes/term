@@ -1,2 +1,2 @@
 # term
-90's VGA germinal emulator
+90's VGA terminal emulator
