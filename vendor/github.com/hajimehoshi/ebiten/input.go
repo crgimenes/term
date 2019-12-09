@@ -15,8 +15,7 @@
 package ebiten
 
 import (
-	"github.com/hajimehoshi/ebiten/internal/input"
-	"github.com/hajimehoshi/ebiten/internal/ui"
+	"github.com/hajimehoshi/ebiten/internal/driver"
 )
 
 // InputChars return "printable" runes read from the keyboard at the time update is called.
@@ -29,7 +28,7 @@ import (
 //
 // InputChars is concurrent-safe.
 func InputChars() []rune {
-	rb := input.Get().RuneBuffer()
+	rb := uiDriver().Input().RuneBuffer()
 	return append(make([]rune, 0, len(rb)), rb...)
 }
 
@@ -42,14 +41,37 @@ func InputChars() []rune {
 //
 // IsKeyPressed is concurrent-safe.
 func IsKeyPressed(key Key) bool {
-	return input.Get().IsKeyPressed(input.Key(key))
+	// There are keys that are invalid values as ebiten.Key (e.g., driver.KeyLeftAlt).
+	// Skip such values.
+	if !key.isValid() {
+		return false
+	}
+
+	var keys []driver.Key
+	switch key {
+	case KeyAlt:
+		keys = append(keys, driver.KeyLeftAlt, driver.KeyRightAlt)
+	case KeyControl:
+		keys = append(keys, driver.KeyLeftControl, driver.KeyRightControl)
+	case KeyShift:
+		keys = append(keys, driver.KeyLeftShift, driver.KeyRightShift)
+	default:
+		keys = append(keys, driver.Key(key))
+	}
+	for _, k := range keys {
+		if uiDriver().Input().IsKeyPressed(k) {
+			return true
+		}
+	}
+	return false
 }
 
-// CursorPosition returns a position of a mouse cursor.
+// CursorPosition returns a position of a mouse cursor relative to the game screen (window). The cursor position is
+// 'logical' position and this considers the scale of the screen.
 //
 // CursorPosition is concurrent-safe.
 func CursorPosition() (x, y int) {
-	return ui.AdjustedCursorPosition()
+	return uiDriver().Input().CursorPosition()
 }
 
 // Wheel returns the x and y offset of the mouse wheel or touchpad scroll.
@@ -57,7 +79,7 @@ func CursorPosition() (x, y int) {
 //
 // Wheel is concurrent-safe.
 func Wheel() (xoff, yoff float64) {
-	return input.Get().Wheel()
+	return uiDriver().Input().Wheel()
 }
 
 // IsMouseButtonPressed returns a boolean indicating whether mouseButton is pressed.
@@ -67,7 +89,7 @@ func Wheel() (xoff, yoff float64) {
 // Note that touch events not longer affect IsMouseButtonPressed's result as of 1.4.0-alpha.
 // Use Touches instead.
 func IsMouseButtonPressed(mouseButton MouseButton) bool {
-	return input.Get().IsMouseButtonPressed(input.MouseButton(mouseButton))
+	return uiDriver().Input().IsMouseButtonPressed(driver.MouseButton(mouseButton))
 }
 
 // GamepadIDs returns a slice indicating available gamepad IDs.
@@ -76,7 +98,7 @@ func IsMouseButtonPressed(mouseButton MouseButton) bool {
 //
 // GamepadIDs always returns an empty slice on mobiles.
 func GamepadIDs() []int {
-	return input.Get().GamepadIDs()
+	return uiDriver().Input().GamepadIDs()
 }
 
 // GamepadAxisNum returns the number of axes of the gamepad (id).
@@ -85,7 +107,7 @@ func GamepadIDs() []int {
 //
 // GamepadAxisNum always returns 0 on mobiles.
 func GamepadAxisNum(id int) int {
-	return input.Get().GamepadAxisNum(id)
+	return uiDriver().Input().GamepadAxisNum(id)
 }
 
 // GamepadAxis returns the float value [-1.0 - 1.0] of the given gamepad (id)'s axis (axis).
@@ -94,7 +116,7 @@ func GamepadAxisNum(id int) int {
 //
 // GamepadAxis always returns 0 on mobiles.
 func GamepadAxis(id int, axis int) float64 {
-	return input.Get().GamepadAxis(id, axis)
+	return uiDriver().Input().GamepadAxis(id, axis)
 }
 
 // GamepadButtonNum returns the number of the buttons of the given gamepad (id).
@@ -103,7 +125,7 @@ func GamepadAxis(id int, axis int) float64 {
 //
 // GamepadButtonNum always returns 0 on mobiles.
 func GamepadButtonNum(id int) int {
-	return input.Get().GamepadButtonNum(id)
+	return uiDriver().Input().GamepadButtonNum(id)
 }
 
 // IsGamepadButtonPressed returns the boolean indicating the given button of the gamepad (id) is pressed or not.
@@ -115,7 +137,7 @@ func GamepadButtonNum(id int) int {
 //
 // IsGamepadButtonPressed always returns false on mobiles.
 func IsGamepadButtonPressed(id int, button GamepadButton) bool {
-	return input.Get().IsGamepadButtonPressed(id, input.GamepadButton(button))
+	return uiDriver().Input().IsGamepadButtonPressed(id, driver.GamepadButton(button))
 }
 
 // TouchIDs returns the current touch states.
@@ -125,11 +147,7 @@ func IsGamepadButtonPressed(id int, button GamepadButton) bool {
 //
 // TouchIDs is concurrent-safe.
 func TouchIDs() []int {
-	var ids []int
-	for _, t := range ui.AdjustedTouches() {
-		ids = append(ids, t.ID())
-	}
-	return ids
+	return uiDriver().Input().TouchIDs()
 }
 
 // TouchPosition returns the position for the touch of the specified ID.
@@ -138,12 +156,18 @@ func TouchIDs() []int {
 //
 // TouchPosition is cuncurrent-safe.
 func TouchPosition(id int) (int, int) {
-	for _, t := range ui.AdjustedTouches() {
-		if t.ID() == id {
-			return t.Position()
+	found := false
+	for _, i := range uiDriver().Input().TouchIDs() {
+		if id == i {
+			found = true
+			break
 		}
 	}
-	return 0, 0
+	if !found {
+		return 0, 0
+	}
+
+	return uiDriver().Input().TouchPosition(id)
 }
 
 // Touch is deprecated as of 1.7.0. Use TouchPosition instead.
@@ -155,12 +179,30 @@ type Touch interface {
 	Position() (x, y int)
 }
 
+type touch struct {
+	id int
+	x  int
+	y  int
+}
+
+func (t *touch) ID() int {
+	return t.id
+}
+
+func (t *touch) Position() (x, y int) {
+	return t.x, t.y
+}
+
 // Touches is deprecated as of 1.7.0. Use TouchIDs instead.
 func Touches() []Touch {
-	touches := ui.AdjustedTouches()
-	var copies []Touch
-	for _, touch := range touches {
-		copies = append(copies, touch)
+	var ts []Touch
+	for _, id := range TouchIDs() {
+		x, y := TouchPosition(id)
+		ts = append(ts, &touch{
+			id: id,
+			x:  x,
+			y:  y,
+		})
 	}
-	return copies
+	return ts
 }

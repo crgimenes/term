@@ -1,29 +1,33 @@
-# Ebiten (海老天)
+# Ebiten
 
 [![Build Status](https://travis-ci.org/hajimehoshi/ebiten.svg?branch=master)](https://travis-ci.org/hajimehoshi/ebiten)
 [![GoDoc](https://godoc.org/github.com/hajimehoshi/ebiten?status.svg)](http://godoc.org/github.com/hajimehoshi/ebiten)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hajimehoshi/ebiten)](https://goreportcard.com/report/github.com/hajimehoshi/ebiten)
 
-A dead simple 2D game library in Go
+**A dead simple 2D game library in Go**
 
-* [Website](https://hajimehoshi.github.io/ebiten/)
-* [Cheat Sheet](https://github.com/hajimehoshi/ebiten/wiki/Cheat-Sheet)
+Ebiten is an open-source game library, with which you can develop 2D games with simple API for multi platforms in the Go programming language.
 
-[![Flappy Example](docs/images/examples/flappy.png)](https://hajimehoshi.github.io/ebiten/examples/flappy.html)
+* [Website (ebiten.org)](https://ebiten.org/)
+* [Cheat Sheet](https://ebiten.org/cheatsheet.html)
+
+![Overview](https://ebiten.org/images/overview.png)
 
 ## Platforms
 
-* [Windows](https://github.com/hajimehoshi/ebiten/wiki/Windows) (No Cgo!)
-* [macOS](https://github.com/hajimehoshi/ebiten/wiki/macOS)
-* [Linux](https://github.com/hajimehoshi/ebiten/wiki/Linux)
-* [FreeBSD](https://github.com/hajimehoshi/ebiten/wiki/FreeBSD)
-* [Android](https://github.com/hajimehoshi/ebiten/wiki/Android)
-* [iOS](https://github.com/hajimehoshi/ebiten/wiki/iOS)
+* Windows (No Cgo!)
+* macOS
+* Linux
+* FreeBSD
+* Android
+* iOS
 * Web browsers (Chrome, Firefox, Safari and Edge)
   * [GopherJS](https://github.com/hajimehoshi/ebiten/wiki/GopherJS)
   * [WebAssembly](https://github.com/hajimehoshi/ebiten/wiki/WebAssembly) (Experimental)
 
 Note: Gamepad and keyboard are not available on Android/iOS.
+
+For installation on desktops, see [the installation instruction](https://ebiten.org/install.html).
 
 ## Features
 

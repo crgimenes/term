@@ -15,27 +15,25 @@
 package restorable
 
 import (
-	"image"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/internal/graphicscommand"
 )
 
-// restoringEnabled indicates if restoring happens or not.
-//
-// This value is overridden at enabled_*.go.
-var restoringEnabled = true
+// forceRestoring reports whether restoring forcely happens or not.
+var forceRestoring = false
 
-// IsRestoringEnabled returns a boolean value indicating whether
-// restoring process works or not.
-func IsRestoringEnabled() bool {
-	// This value is updated only at init or EnableRestoringForTesting.
-	// No need to lock here.
-	return restoringEnabled
+// needsRestoring reports whether restoring process works or not.
+func needsRestoring() bool {
+	if forceRestoring {
+		return true
+	}
+	return graphicscommand.NeedsRestoring()
 }
 
 // EnableRestoringForTesting forces to enable restoring for testing.
 func EnableRestoringForTesting() {
-	restoringEnabled = true
+	forceRestoring = true
 }
 
 // images is a set of Image objects.
@@ -55,50 +53,54 @@ var theImages = &images{
 // ResolveStaleImages is intended to be called at the end of a frame.
 func ResolveStaleImages() {
 	graphicscommand.FlushCommands()
-	if !restoringEnabled {
+	if !needsRestoring() {
 		return
 	}
 	theImages.resolveStaleImages()
 }
 
-// Restore restores the images.
+// RestoreIfNeeded restores the images.
 //
 // Restoring means to make all *graphicscommand.Image objects have their textures and framebuffers.
-func Restore() error {
+func RestoreIfNeeded() error {
+	if !needsRestoring() {
+		return nil
+	}
+
+	if !forceRestoring {
+		r := false
+		// As isInvalidated() is expensive, call this only for one image.
+		// This assumes that if there is one image that is invalidated, all images are invalidated.
+		for img := range theImages.images {
+			// The screen image might not have a texture. Skip this.
+			if img.screen {
+				continue
+			}
+			r = img.isInvalidated()
+			break
+		}
+		if !r {
+			return nil
+		}
+	}
+
 	if err := graphicscommand.ResetGraphicsDriverState(); err != nil {
 		return err
 	}
-	return theImages.restore()
+	theImages.restore()
+	return nil
 }
 
-func Images() []image.Image {
-	var imgs []image.Image
+// DumpImages dumps all the current images to the specified directory.
+//
+// This is for testing usage.
+func DumpImages(dir string) error {
 	for img := range theImages.images {
-		if img.volatile {
-			continue
+		if err := img.Dump(filepath.Join(dir, "*.png")); err != nil {
+			return err
 		}
-		if img.screen {
-			continue
-		}
-
-		w, h := img.Size()
-		pix := make([]byte, 4*w*h)
-		for j := 0; j < h; j++ {
-			for i := 0; i < w; i++ {
-				r, g, b, a := img.At(i, j)
-				pix[4*(i+j*w)] = r
-				pix[4*(i+j*w)+1] = g
-				pix[4*(i+j*w)+2] = b
-				pix[4*(i+j*w)+3] = a
-			}
-		}
-		imgs = append(imgs, &image.RGBA{
-			Pix:    pix,
-			Stride: 4 * w,
-			Rect:   image.Rect(0, 0, w, h),
-		})
 	}
-	return imgs
+	return nil
 }
 
 // add adds img to the images.
@@ -145,15 +147,16 @@ func (i *images) makeStaleIfDependingOnImpl(target *Image) {
 // restore restores the images.
 //
 // Restoring means to make all *graphicscommand.Image objects have their textures and framebuffers.
-func (i *images) restore() error {
-	if !IsRestoringEnabled() {
+func (i *images) restore() {
+	if !needsRestoring() {
 		panic("restorable: restore cannot be called when restoring is disabled")
 	}
 
-	// Dispose image explicitly
-	for img := range i.images {
-		img.image.Dispose()
-		// img.image can't be set nil here, or Size() panics when restoring.
+	// Dispose all the images ahead of restoring. A current texture ID and a new texture ID can be duplicated.
+	// TODO: Write a test to confirm that ID duplication never happens.
+	for i := range i.images {
+		i.image.Dispose()
+		i.image = nil
 	}
 
 	// Let's do topological sort based on dependencies of drawing history.
@@ -208,11 +211,8 @@ func (i *images) restore() error {
 	}
 
 	for _, img := range sorted {
-		if err := img.restore(); err != nil {
-			return err
-		}
+		img.restore()
 	}
-	return nil
 }
 
 // InitializeGraphicsDriverState initializes the graphics driver state.

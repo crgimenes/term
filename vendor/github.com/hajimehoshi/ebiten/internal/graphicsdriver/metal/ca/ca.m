@@ -20,10 +20,13 @@
 void *MakeMetalLayer() {
   CAMetalLayer *layer = [[CAMetalLayer alloc] init];
   // TODO: Expose a function to set color space.
+  // TODO: Enable colorspace on iOS: this will be available as of iOS 13.0.
+#if !TARGET_OS_IPHONE
   CGColorSpaceRef colorspace =
       CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3);
   layer.colorspace = colorspace;
   CGColorSpaceRelease(colorspace);
+#endif
   return layer;
 }
 
@@ -33,6 +36,10 @@ uint16_t MetalLayer_PixelFormat(void *metalLayer) {
 
 void MetalLayer_SetDevice(void *metalLayer, void *device) {
   ((CAMetalLayer *)metalLayer).device = (id<MTLDevice>)device;
+}
+
+void MetalLayer_SetOpaque(void *metalLayer, unsigned char opaque) {
+  ((CAMetalLayer *)metalLayer).opaque = (BOOL)opaque;
 }
 
 const char *MetalLayer_SetPixelFormat(void *metalLayer, uint16_t pixelFormat) {
@@ -65,17 +72,19 @@ const char *MetalLayer_SetMaximumDrawableCount(void *metalLayer,
 }
 
 void MetalLayer_SetDisplaySyncEnabled(void *metalLayer,
-                                      BOOL displaySyncEnabled) {
+                                      uint8_t displaySyncEnabled) {
   // @available syntax is not available for old Xcode (#781)
   //
   // If possible, we'd want to write the guard like:
   //
   //     if (@available(macOS 10.13, *)) { ...
 
+#if !TARGET_OS_IPHONE
   if ([(CAMetalLayer *)metalLayer
           respondsToSelector:@selector(setDisplaySyncEnabled:)]) {
     [((CAMetalLayer *)metalLayer) setDisplaySyncEnabled:displaySyncEnabled];
   }
+#endif
 }
 
 void MetalLayer_SetDrawableSize(void *metalLayer, double width, double height) {

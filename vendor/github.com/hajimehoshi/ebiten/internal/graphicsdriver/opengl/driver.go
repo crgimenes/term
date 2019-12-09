@@ -16,10 +16,12 @@ package opengl
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/hajimehoshi/ebiten/internal/affine"
+	"github.com/hajimehoshi/ebiten/internal/driver"
 	"github.com/hajimehoshi/ebiten/internal/graphics"
-	"github.com/hajimehoshi/ebiten/internal/graphicsdriver"
+	"github.com/hajimehoshi/ebiten/internal/thread"
 )
 
 var theDriver Driver
@@ -31,6 +33,13 @@ func Get() *Driver {
 type Driver struct {
 	state   openGLState
 	context context
+
+	// drawCalled is true just after Draw is called. This holds true until ReplacePixels is called.
+	drawCalled bool
+}
+
+func (d *Driver) SetThread(thread *thread.Thread) {
+	d.context.t = thread
 }
 
 func (d *Driver) Begin() {
@@ -41,8 +50,12 @@ func (d *Driver) End() {
 	// Do nothing.
 }
 
-func (d *Driver) SetWindow(window uintptr) {
+func (d *Driver) SetWindow(window unsafe.Pointer) {
 	// Do nothing.
+}
+
+func (d *Driver) SetTransparent(transparent bool) {
+	// Do nothings.
 }
 
 func (d *Driver) checkSize(width, height int) {
@@ -61,7 +74,7 @@ func (d *Driver) checkSize(width, height int) {
 	}
 }
 
-func (d *Driver) NewImage(width, height int) (graphicsdriver.Image, error) {
+func (d *Driver) NewImage(width, height int) (driver.Image, error) {
 	i := &Image{
 		driver: d,
 		width:  width,
@@ -78,7 +91,7 @@ func (d *Driver) NewImage(width, height int) (graphicsdriver.Image, error) {
 	return i, nil
 }
 
-func (d *Driver) NewScreenFramebufferImage(width, height int) (graphicsdriver.Image, error) {
+func (d *Driver) NewScreenFramebufferImage(width, height int) (driver.Image, error) {
 	d.checkSize(width, height)
 	i := &Image{
 		driver: d,
@@ -102,7 +115,8 @@ func (d *Driver) SetVertices(vertices []float32, indices []uint16) {
 	d.context.elementArrayBufferSubData(indices)
 }
 
-func (d *Driver) Draw(indexLen int, indexOffset int, mode graphics.CompositeMode, colorM *affine.ColorM, filter graphics.Filter, address graphics.Address) error {
+func (d *Driver) Draw(indexLen int, indexOffset int, mode driver.CompositeMode, colorM *affine.ColorM, filter driver.Filter, address driver.Address) error {
+	d.drawCalled = true
 	if err := d.useProgram(mode, colorM, filter, address); err != nil {
 		return err
 	}
@@ -122,10 +136,22 @@ func (d *Driver) SetVsyncEnabled(enabled bool) {
 	// Do nothing
 }
 
-func (d *Driver) VDirection() graphicsdriver.VDirection {
-	return graphicsdriver.VDownward
+func (d *Driver) VDirection() driver.VDirection {
+	return driver.VDownward
+}
+
+func (d *Driver) NeedsRestoring() bool {
+	return d.context.needsRestoring()
 }
 
 func (d *Driver) IsGL() bool {
 	return true
+}
+
+func (d *Driver) HasHighPrecisionFloat() bool {
+	return d.context.hasHighPrecisionFloat()
+}
+
+func (d *Driver) MaxImageSize() int {
+	return d.context.getMaxTextureSize()
 }

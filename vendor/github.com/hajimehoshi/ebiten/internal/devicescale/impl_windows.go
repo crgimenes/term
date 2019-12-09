@@ -18,6 +18,7 @@ package devicescale
 
 import (
 	"fmt"
+	"runtime"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -136,8 +137,9 @@ func getDeviceCaps(hdc uintptr, nindex int) (int, error) {
 	return int(r), nil
 }
 
-func monitorFromRect(lprc uintptr, dwFlags int) (uintptr, error) {
-	r, _, e := procMonitorFromRect.Call(lprc, uintptr(dwFlags))
+func monitorFromRect(lprc *rect, dwFlags int) (uintptr, error) {
+	r, _, e := procMonitorFromRect.Call(uintptr(unsafe.Pointer(lprc)), uintptr(dwFlags))
+	runtime.KeepAlive(lprc)
 	if e != nil && e.(windows.Errno) != 0 {
 		return 0, &winErr{
 			FuncName: "MonitorFromRect",
@@ -170,8 +172,8 @@ func getMonitorInfo(hMonitor uintptr, lpMonitorInfo uintptr) error {
 	return nil
 }
 
-func getDpiForMonitor(hMonitor uintptr, dpiType uintptr, dpiX, dpiY uintptr) error {
-	r, _, e := procGetDpiForMonitor.Call(hMonitor, dpiType, dpiX, dpiY)
+func getDpiForMonitor(hMonitor uintptr, dpiType uintptr, dpiX, dpiY *uint32) error {
+	r, _, e := procGetDpiForMonitor.Call(hMonitor, dpiType, uintptr(unsafe.Pointer(dpiX)), uintptr(unsafe.Pointer(dpiY)))
 	if e != nil && e.(windows.Errno) != 0 {
 		return &winErr{
 			FuncName: "GetDpiForMonitor",
@@ -238,15 +240,17 @@ func impl(x, y int) float64 {
 
 	// MonitorFromPoint requires to pass a POINT value, and there seems no portable way to
 	// do this with Cgo. Use MonitorFromRect instead.
-	m, err := monitorFromRect(uintptr(unsafe.Pointer(&lprc)), monitorDefaultToNearest)
+	m, err := monitorFromRect(&lprc, monitorDefaultToNearest)
 	if err != nil {
 		panic(err)
 	}
 
 	dpiX := uint32(0)
-	dpiY := uint32(0) // Passing dpiY is needed even though this is not used.
-	if err := getDpiForMonitor(m, mdtEffectiveDpi, uintptr(unsafe.Pointer(&dpiX)), uintptr(unsafe.Pointer(&dpiY))); err != nil {
+	dpiY := uint32(0) // Passing dpiY is needed even though this is not used, or GetDpiForMonitor returns an error.
+	if err := getDpiForMonitor(m, mdtEffectiveDpi, &dpiX, &dpiY); err != nil {
 		panic(err)
 	}
+	runtime.KeepAlive(dpiY)
+
 	return float64(dpiX) / 96
 }
