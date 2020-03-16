@@ -18,7 +18,7 @@ license that can be found in the LICENSE file.
 	<script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
 	(see https://caniuse.com/#feat=textencoder)
 	-->
-	<script src='https://d33wubrfki0l68.cloudfront.net/js/8335561ceeb724de76cd837650e6036f66969293/term/wasm_exec.js'></script>
+	<script src='wasm_exec.js'></script>
 	<script>
 		if (!WebAssembly.instantiateStreaming) { // polyfill
 			WebAssembly.instantiateStreaming = async (resp, importObject) => {
