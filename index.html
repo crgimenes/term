@@ -9,15 +9,16 @@ license that can be found in the LICENSE file.
 <head>
 	<meta charset="utf-8">
 	<title>Go wasm</title>
+	<link rel="stylesheet" type="text/css" href="loader.css">
 </head>
 
-<body>
+<body class="loader loader-default is-active" data-text>
 	<!--
 	Add the following polyfill for Microsoft Edge 17/18 support:
 	<script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
 	(see https://caniuse.com/#feat=textencoder)
 	-->
-	<script src="wasm_exec.js"></script>
+	<script src='https://d33wubrfki0l68.cloudfront.net/js/8335561ceeb724de76cd837650e6036f66969293/term/wasm_exec.js'></script>
 	<script>
 		if (!WebAssembly.instantiateStreaming) { // polyfill
 			WebAssembly.instantiateStreaming = async (resp, importObject) => {
@@ -31,8 +32,10 @@ license that can be found in the LICENSE file.
 		WebAssembly.instantiateStreaming(fetch("term.wasm"), go.importObject).then((result) => {
 			mod = result.module;
 			inst = result.instance;
-			document.getElementById("runButton").disabled = false;
+			document.body.className = "";
+			run();
 		}).catch((err) => {
+			document.body.className = "";
 			console.error(err);
 		});
 
@@ -42,8 +45,6 @@ license that can be found in the LICENSE file.
 			inst = await WebAssembly.instantiate(mod, go.importObject); // reset instance
 		}
 	</script>
-
-	<button onClick="run();" id="runButton" disabled>Run</button>
 </body>
 
 </html>
