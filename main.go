@@ -1,7 +1,7 @@
 package main
 
 import (
-	"term/coreterm"
+	"github.com/crgimenes/term/coreterm"
 )
 
 func main() {
@@ -11,5 +11,3 @@ func main() {
 	ct.Run()
 
 }
-
-
