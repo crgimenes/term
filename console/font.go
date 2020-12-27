@@ -1,4 +1,4 @@
-package coreterm
+package console
 
 /*
 VGA 80x25 characters 8/9 pixels wide by 16 pixels high, 720×400 pixels
