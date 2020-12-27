@@ -29,6 +29,9 @@ type Console struct {
 	width  int
 	scale  float64
 
+	cursorSetBlink   bool
+	cursorBlinkTimer int
+
 	tmpScreen *ebiten.Image
 	img       *image.RGBA
 
@@ -54,6 +57,7 @@ func New() *Console {
 	c.height = 25 * 16
 	c.scale = 1
 	c.title = "term"
+	c.cursorSetBlink = true
 
 	c.img = image.NewRGBA(image.Rect(0, 0, c.width, c.height))
 	c.tmpScreen, _ = ebiten.NewImage(c.width, c.height, ebiten.FilterNearest)
@@ -87,11 +91,11 @@ func (c *Console) update(screen *ebiten.Image) error {
 }
 
 func (c *Console) clear() {
-	for i := 0; i < c.height*c.width*4; i += 4 {
-		c.img.Pix[i] = c.bgColor.R
-		c.img.Pix[i+1] = c.bgColor.G
-		c.img.Pix[i+2] = c.bgColor.B
-		c.img.Pix[i+3] = 0xff
+	for i := 0; i < len(c.videoTextMemory); i++ {
+		c.videoTextMemory[i].charID = ' '
+		c.videoTextMemory[i].bgColor = c.bgColor
+		c.videoTextMemory[i].fgColor = c.fgColor
+		c.videoTextMemory[i].blink = false
 	}
 }
 
@@ -102,11 +106,11 @@ func (c *Console) drawText() {
 	for row := 0; row < rows; row++ {
 		for col := 0; col < columns; col++ {
 			v := c.videoTextMemory[i]
-			//if i == c.cursor {
-			//	c.drawCursor(v.charID, v.fgColor, v.bgColor, col, row)
-			//} else {
-			c.drawChar(v.charID, v.fgColor, v.bgColor, col, row)
-			//}
+			if i == c.cursor {
+				c.drawCursor(v.charID, v.fgColor, v.bgColor, col, row)
+			} else {
+				c.drawChar(v.charID, v.fgColor, v.bgColor, col, row)
+			}
 			i++
 		}
 	}
@@ -164,6 +168,21 @@ func (c *Console) set(x, y int, color color) {
 	c.img.Pix[p+1] = color.G
 	c.img.Pix[p+2] = color.B
 	c.img.Pix[p+3] = 0xff
+}
+
+func (c *Console) drawCursor(index int, fgColor, bgColor color, x, y int) {
+	if c.cursorSetBlink {
+		if c.cursorBlinkTimer < 15 {
+			fgColor, bgColor = bgColor, fgColor
+		}
+		c.drawChar(index, fgColor, bgColor, x, y)
+		c.cursorBlinkTimer++
+		if c.cursorBlinkTimer > 30 {
+			c.cursorBlinkTimer = 0
+		}
+		return
+	}
+	c.drawChar(index, bgColor, fgColor, x, y)
 }
 
 func (c *Console) drawChar(index int, fgColor, bgColor color, x, y int) {
