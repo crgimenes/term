@@ -1,7 +1,10 @@
 package console
 
 import (
+	"fmt"
 	"image"
+	"strconv"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten"
 )
@@ -49,10 +52,58 @@ func (c *Console) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+func colorParserFg(i int) (color, bool) {
+	fg := make(map[int]color, 16)
+
+	fg[30] = color{0, 0, 0}       // Black
+	fg[31] = color{170, 0, 0}     // Red
+	fg[32] = color{0, 170, 0}     // Green
+	fg[33] = color{170, 85, 0}    // Yellow
+	fg[34] = color{0, 0, 170}     // Blue
+	fg[35] = color{170, 0, 170}   // Magenta
+	fg[36] = color{0, 170, 170}   // Cyan
+	fg[37] = color{170, 170, 170} // White
+	fg[90] = color{85, 85, 85}    // Bright Black (Gray)
+	fg[91] = color{255, 85, 85}   // Bright Red
+	fg[92] = color{85, 255, 85}   // Bright Green
+	fg[93] = color{255, 255, 85}  // Bright Yellow
+	fg[94] = color{85, 85, 255}   // Bright Blue
+	fg[95] = color{255, 85, 255}  // Bright Magenta
+	fg[96] = color{85, 255, 255}  // Bright Cyan
+	fg[97] = color{255, 255, 255} // Bright White
+
+	c, ok := fg[i]
+	return c, ok
+}
+
+func colorParserBg(i int) (color, bool) {
+	bg := make(map[int]color, 16)
+
+	bg[40] = color{0, 0, 0}        // Black
+	bg[41] = color{170, 0, 0}      // Red
+	bg[42] = color{0, 170, 0}      // Green
+	bg[43] = color{170, 85, 0}     // Yellow
+	bg[44] = color{0, 0, 170}      // Blue
+	bg[45] = color{170, 0, 170}    // Magenta
+	bg[46] = color{0, 170, 170}    // Cyan
+	bg[47] = color{170, 170, 170}  // White
+	bg[100] = color{85, 85, 85}    // Bright Black (Gray)
+	bg[101] = color{255, 85, 85}   // Bright Red
+	bg[102] = color{85, 255, 85}   // Bright Green
+	bg[103] = color{255, 255, 85}  // Bright Yellow
+	bg[104] = color{85, 85, 255}   // Bright Blue
+	bg[105] = color{255, 85, 255}  // Bright Magenta
+	bg[106] = color{85, 255, 255}  // Bright Cyan
+	bg[107] = color{255, 255, 255} // Bright White
+
+	c, ok := bg[i]
+	return c, ok
+}
+
 func New() *Console {
 	c := &Console{}
-	c.bgColor = color{0, 0, 0}
-	c.fgColor = color{255, 255, 255}
+	c.bgColor, _ = colorParserBg(40)
+	c.fgColor, _ = colorParserFg(37)
 	c.width = 80 * 9
 	c.height = 25 * 16
 	c.scale = 1
@@ -91,6 +142,7 @@ func (c *Console) update(screen *ebiten.Image) error {
 }
 
 func (c *Console) clear() {
+	c.cursor = 0
 	for i := 0; i < len(c.videoTextMemory); i++ {
 		c.videoTextMemory[i].charID = ' '
 		c.videoTextMemory[i].bgColor = c.bgColor
@@ -146,19 +198,93 @@ func (c *Console) cursorLimit() {
 
 func (c *Console) Print(msg string) {
 	columns := 80
+	parseMode := false
+	csi := false
+	s := ""
 	for i := 0; i < len(msg); i++ {
-		switch msg[i] {
-		case 10: // Line Feed, \n
+		v := msg[i]
+		switch {
+		case v == 10: // Line Feed, \n
 			c.cursor += columns
 			c.cursorLimit()
-			continue
-		case 13: // Carriage Return, \r
+		case v == 13: // Carriage Return, \r
 			c.cursor = int(c.cursor/columns) * columns
 			c.cursorLimit()
-			continue
+		case v == 27:
+			parseMode = true
+		case v == '[' && parseMode:
+			// Control Sequence Introducer
+			csi = true
+			s = ""
+		case v == 'm' && csi:
+			sv := strings.Split(s, ";")
+			//bold := false
+			for _, j := range sv {
+				if j == "0" {
+					c.bgColor, _ = colorParserBg(40)
+					c.fgColor, _ = colorParserFg(37)
+					//bold = false
+					continue
+				} else if j == "1" {
+					//bool = true
+					continue
+				} else {
+					i, err := strconv.Atoi(j)
+					if err != nil {
+						fmt.Println(err, "code:", s)
+						continue
+					}
+					fgColor, ok := colorParserFg(i)
+					if ok {
+						c.fgColor = fgColor
+						continue
+					}
+					bgColor, ok := colorParserBg(i)
+					if ok {
+						c.bgColor = bgColor
+						continue
+					}
+					fmt.Println("ANSI code not implemented:", i)
+				}
+			}
+			parseMode = false
+			csi = false
+		case v == 'H' && csi:
+			if s == "" {
+				c.cursor = 0
+			} else {
+				sv := strings.Split(s, ";")
+				if len(sv) == 2 {
+					lin, _ := strconv.Atoi(sv[0])
+					col, _ := strconv.Atoi(sv[1])
+					cpos := lin*columns + col
+					if cpos <= 2000 { // 25*80
+						c.cursor = cpos
+					}
+				}
+			}
+			parseMode = false
+			csi = false
+		case v == 'J' && csi:
+			if len(s) > 0 {
+				if s[0] == '2' {
+					c.clear()
+				}
+			}
+			parseMode = false
+			csi = false
+		case v >= 'a' &&
+			v <= 'z' &&
+			v <= 'A' &&
+			v <= 'Z' &&
+			parseMode:
+			parseMode = false
+			csi = false
+		case csi || parseMode:
+			s += string(v)
+		default:
+			c.put(int(msg[i]))
 		}
-
-		c.put(int(msg[i]))
 	}
 }
 

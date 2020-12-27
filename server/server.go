@@ -83,10 +83,10 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		//mt, message, err := c.ReadMessage()
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			log.Printf("read: %v\r\n", err)
 			break
 		}
-		log.Printf("recv: %s", message)
+		log.Printf("recv: %s\r\n", message)
 		if string(message) == "quit" {
 			c.Close()
 			break
@@ -114,7 +114,7 @@ func test() error {
 	go func() {
 		for range ch {
 			if err := pty.InheritSize(os.Stdin, ptmx); err != nil {
-				log.Printf("error resizing pty: %s", err)
+				log.Printf("error resizing pty: %s\r\n", err)
 			}
 		}
 	}()
