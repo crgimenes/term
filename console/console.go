@@ -215,11 +215,6 @@ func (c *Console) Print(msg string) {
 			col := int(c.cursor % columns)
 			ncol := int(col/4)*4 + 4 // tab size 4 and remove mod
 			c.cursor = lin*columns + ncol
-			fmt.Println("lin:", lin)
-			fmt.Println("col:", col)
-			fmt.Println("ncol:", ncol)
-			fmt.Println("cursor:", c.cursor)
-
 			c.cursorLimit()
 		case v == 10: // Line Feed, \n
 			c.cursor += columns
