@@ -201,13 +201,34 @@ func (c *Console) Print(msg string) {
 	parseMode := false
 	csi := false
 	s := ""
+
 	for i := 0; i < len(msg); i++ {
 		v := msg[i]
 		switch {
+		case v == 7: // bell
+			// not implemented
+		case v == 8: // Backspace
+			c.cursor--
+			c.cursorLimit()
+		case v == 9: // tab \t
+			lin := int(c.cursor / columns)
+			col := int(c.cursor % columns)
+			ncol := int(col/4)*4 + 4 // tab size 4 and remove mod
+			c.cursor = lin*columns + ncol
+			fmt.Println("lin:", lin)
+			fmt.Println("col:", col)
+			fmt.Println("ncol:", ncol)
+			fmt.Println("cursor:", c.cursor)
+
+			c.cursorLimit()
 		case v == 10: // Line Feed, \n
 			c.cursor += columns
 			c.cursorLimit()
-		case v == 13: // Carriage Return, \r
+		case v == 11: // Vertical tab
+			// not implemented
+		case v == 12: //  Formfeed
+			// not implemented
+		case v == 13: // Carriage return \r
 			c.cursor = int(c.cursor/columns) * columns
 			c.cursorLimit()
 		case v == 27:
@@ -216,17 +237,33 @@ func (c *Console) Print(msg string) {
 			// Control Sequence Introducer
 			csi = true
 			s = ""
+		case v == 'c' && csi: // Reset display to initial state
+			c.clear()
+			c.bgColor, _ = colorParserBg(40)
+			c.fgColor, _ = colorParserFg(37)
+			//bold = false
+			parseMode = false
+			csi = false
+			continue
 		case v == 'm' && csi:
 			sv := strings.Split(s, ";")
 			//bold := false
 			for _, j := range sv {
-				if j == "0" {
+				if j == "" {
+					continue
+				} else if j == "0" {
 					c.bgColor, _ = colorParserBg(40)
 					c.fgColor, _ = colorParserFg(37)
 					//bold = false
 					continue
 				} else if j == "1" {
 					//bool = true
+					continue
+				} else if j == "39" { // Default foreground color
+					c.fgColor, _ = colorParserFg(37)
+					continue
+				} else if j == "49" { // Default background color
+					c.bgColor, _ = colorParserBg(37)
 					continue
 				} else {
 					i, err := strconv.Atoi(j)
@@ -246,6 +283,37 @@ func (c *Console) Print(msg string) {
 					}
 					fmt.Println("ANSI code not implemented:", i)
 				}
+			}
+			parseMode = false
+			csi = false
+		case v == 'd' && csi:
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			cpos := i * columns
+			if cpos < 2000 {
+				c.cursor = cpos
+			}
+			parseMode = false
+			csi = false
+		case v == 'G' && csi:
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			lin := int(c.cursor / columns)
+			cpos := lin*columns + i
+			if cpos < 2000 {
+				c.cursor = cpos
 			}
 			parseMode = false
 			csi = false

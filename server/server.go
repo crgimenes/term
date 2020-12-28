@@ -35,6 +35,7 @@ func isLetter(c byte) bool {
 func (o out) Write(p []byte) (n int, err error) {
 	n = len(p)
 
+	// collect ansi code
 	for _, v := range p {
 		if v == '\x1b' {
 			ansiAux = "ESC"
@@ -63,7 +64,7 @@ func (o out) Write(p []byte) (n int, err error) {
 var o = out{}
 var conn *websocket.Conn
 
-func echo(w http.ResponseWriter, r *http.Request) {
+func handle(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -96,7 +97,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	log.Println("cliente desconectado")
 }
 
-func test() error {
+func runCmd() error {
 	// Create arbitrary command.
 	c := exec.Command(os.Args[1], os.Args[2:]...)
 
@@ -137,7 +138,7 @@ func test() error {
 func main() {
 
 	go func() {
-		err := test()
+		err := runCmd()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -150,7 +151,7 @@ func main() {
 
 	flag.Parse()
 	log.SetFlags(0)
-	http.HandleFunc("/ws", echo)
+	http.HandleFunc("/ws", handle)
 	f := http.FileServer(http.Dir("./"))
 	http.Handle("/", f)
 	log.Fatal(http.ListenAndServe(*addr, nil))
