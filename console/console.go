@@ -328,6 +328,18 @@ func (c *Console) Print(msg string) {
 			}
 			parseMode = false
 			csi = false
+		case v == 'X' && csi: // Erase n characters from the current position
+			cpos := c.cursor
+			i := 1
+			if s != "" {
+				i, _ = strconv.Atoi(s)
+			}
+			for x := 1; x <= i; x++ {
+				if cpos+x < 2000 {
+					c.videoTextMemory[cpos+x].charID = ' '
+				}
+			}
+			c.cursor = cpos
 		case v == 'J' && csi:
 			if len(s) > 0 {
 				if s[0] == '2' {
