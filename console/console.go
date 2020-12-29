@@ -27,10 +27,11 @@ type Console struct {
 	fgColor         color
 	bgColor         color
 
-	cursor int
-	height int
-	width  int
-	scale  float64
+	auxCursorPos int
+	cursor       int
+	height       int
+	width        int
+	scale        float64
 
 	cursorSetBlink   bool
 	cursorBlinkTimer int
@@ -106,7 +107,7 @@ func New() *Console {
 	c.fgColor, _ = colorParserFg(37)
 	c.width = 80 * 9
 	c.height = 25 * 16
-	c.scale = 1
+	c.scale = 1.5
 	c.title = "term"
 	c.cursorSetBlink = true
 
@@ -188,6 +189,10 @@ func (c *Console) put(charID int) {
 }
 
 func (c *Console) cursorLimit() {
+	if c.cursor < 0 {
+		c.cursor = 0
+		return
+	}
 	columns := 80
 	rows := 25
 	for c.cursor >= rows*columns {
@@ -296,6 +301,66 @@ func (c *Console) Print(msg string) {
 			}
 			parseMode = false
 			csi = false
+		case v == 's' && csi:
+			c.auxCursorPos = c.cursor // Save cursor position
+			parseMode = false
+			csi = false
+		case v == 'u' && csi:
+			c.cursor = c.auxCursorPos // Restore cursor position
+			parseMode = false
+			csi = false
+		case v == 'A' && csi: // Cursor up
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			c.cursor -= i * columns
+			c.cursorLimit()
+			parseMode = false
+			csi = false
+		case v == 'B' && csi: // Cursor down
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			c.cursor += i * columns
+			c.cursorLimit()
+			parseMode = false
+			csi = false
+		case v == 'C' && csi: // Cursor forward
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			c.cursor += i
+			c.cursorLimit()
+			parseMode = false
+			csi = false
+		case v == 'D' && csi: // Cursor back
+			i := 1
+			if s != "" {
+				var err error
+				i, err = strconv.Atoi(s)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			c.cursor -= i
+			c.cursorLimit()
+			parseMode = false
+			csi = false
 		case v == 'G' && csi:
 			i := 1
 			if s != "" {
@@ -312,7 +377,9 @@ func (c *Console) Print(msg string) {
 			}
 			parseMode = false
 			csi = false
-		case v == 'H' && csi:
+		case v == 'f' && csi: // the same as H
+			fallthrough
+		case v == 'H' && csi: // set horizontal and vertical position
 			if s == "" {
 				c.cursor = 0
 			} else {
@@ -340,6 +407,8 @@ func (c *Console) Print(msg string) {
 				}
 			}
 			c.cursor = cpos
+			parseMode = false
+			csi = false
 		case v == 'J' && csi:
 			if len(s) > 0 {
 				if s[0] == '2' {

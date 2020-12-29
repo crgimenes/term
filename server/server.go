@@ -38,14 +38,17 @@ func (o out) Write(p []byte) (n int, err error) {
 	// collect ansi code
 	for _, v := range p {
 		if v == '\x1b' {
-			ansiAux = "ESC"
+			ansiAux = "ESC:"
 			ansiRec = true
 			continue
 		}
-		if ansiRec {
-			ansiAux += string(v)
-		}
+		/*
+			if ansiRec {
+				ansiAux += string(v)
+			}
+		*/
 		if ansiRec && isLetter(v) {
+			ansiAux += string(v)
 			x := ansiMap[ansiAux]
 			x++
 			ansiMap[ansiAux] = x
