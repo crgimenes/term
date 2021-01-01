@@ -135,7 +135,21 @@ func (c *Console) Run() (err error) {
 	return err
 }
 
+func (c *Console) input() {
+	var r rune
+	for c := 'A'; c <= 'Z'; c++ {
+		if ebiten.IsKeyPressed(ebiten.Key(c) - 'A' + ebiten.KeyA) {
+			if ebiten.IsKeyPressed(ebiten.KeyShift) {
+				r = c
+			}
+			r = (c + 32) // convert to lowercase
+			fmt.Println(string(r))
+		}
+	}
+}
+
 func (c *Console) update(screen *ebiten.Image) error {
+	c.input()
 	c.drawText()
 	c.tmpScreen.ReplacePixels(c.img.Pix)
 	screen.DrawImage(c.tmpScreen, nil)
