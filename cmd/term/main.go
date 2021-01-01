@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -11,17 +10,11 @@ import (
 	"syscall"
 
 	Console "github.com/crgimenes/term/console"
-	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
 	"golang.org/x/term"
 )
 
 var ct = Console.New()
-
-var (
-	addr     = flag.String("addr", "localhost:8080", "http service address")
-	upgrader = websocket.Upgrader{} // use default options
-)
 
 type out struct {
 }
