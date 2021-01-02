@@ -247,6 +247,14 @@ func (c *Console) Print(msg string) {
 			c.cursorLimit()
 		case v == 27:
 			parseMode = true
+		case v == '7' && parseMode: // DEC primitive save cursor position
+			c.auxCursorPos = c.cursor // Save cursor position
+			parseMode = false
+			csi = false
+		case v == '8' && parseMode: // DEC primitive restore cursor position
+			c.cursor = c.auxCursorPos // Restore cursor position
+			parseMode = false
+			csi = false
 		case v == '[' && parseMode:
 			// Control Sequence Introducer
 			csi = true
