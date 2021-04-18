@@ -255,8 +255,7 @@ func (c *Console) Print(msg string) {
 			c.cursor = c.auxCursorPos // Restore cursor position
 			parseMode = false
 			csi = false
-		case v == '[' && parseMode:
-			// Control Sequence Introducer
+		case v == '[' && parseMode: // Control Sequence Introducer
 			csi = true
 			s = ""
 		case v == 'c' && csi: // Reset display to initial state
