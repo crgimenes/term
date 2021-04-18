@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type color struct {
@@ -112,7 +112,7 @@ func New() *Console {
 	c.cursorSetBlink = true
 
 	c.img = image.NewRGBA(image.Rect(0, 0, c.width, c.height))
-	c.tmpScreen, _ = ebiten.NewImage(c.width, c.height, ebiten.FilterNearest)
+	c.tmpScreen = ebiten.NewImage(c.width, c.height)
 
 	c.font.bitmap = bitmap
 	c.font.height = 16
@@ -126,12 +126,10 @@ func New() *Console {
 func (c *Console) Run() (err error) {
 	// SetRunnableOnUnfocused
 	ebiten.SetRunnableOnUnfocused(true)
-	err = ebiten.Run(
-		c.update,
-		c.width,
-		c.height,
-		c.scale,
-		c.title)
+	ebiten.SetWindowSize(c.width, c.height)
+	ebiten.SetWindowTitle(c.title)
+
+	err = ebiten.RunGame(c)
 	return err
 }
 
@@ -148,12 +146,19 @@ func (c *Console) input() {
 	}
 }
 
-func (c *Console) update(screen *ebiten.Image) error {
+func (c *Console) Update() error {
 	c.input()
 	c.drawText()
+	return nil
+}
+
+func (c *Console) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return c.width, c.height
+}
+
+func (c *Console) Draw(screen *ebiten.Image) {
 	c.tmpScreen.ReplacePixels(c.img.Pix)
 	screen.DrawImage(c.tmpScreen, nil)
-	return nil
 }
 
 func (c *Console) clear() {
