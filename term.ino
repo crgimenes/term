@@ -436,13 +436,14 @@ void loop()
   }
 
   // Blink timer: toggle visibility every 500ms (only if something is blinking)
+  // Skip redraw if screensaver is active to avoid showing terminal over screensaver
   if (millis() - lastBlinkTime > 500)
   {
     lastBlinkTime = millis();
     blinkVisible = !blinkVisible;
 
-    // Only redraw when blink can affect what is shown.
-    if (blinkMode || (blinkingLineCount > 0))
+    // Only redraw when blink can affect what is shown and screensaver is off.
+    if (!screensaverActive && (blinkMode || (blinkingLineCount > 0)))
     {
       renderDisplay();
     }
